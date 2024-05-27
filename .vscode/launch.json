@@ -1,0 +1,45 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+    {
+      "name": "clang++ build and debug active file",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${fileDirname}/Poko.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      "externalConsole": true,
+      "MIMode": "lldb",
+      "miDebuggerPath": "lldb-mi",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }]
+    },
+    {
+      "name": "g++ Debug- Build and debug with GDB",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${fileDirname}\\Pong.exe", // name of the .exe file
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      "externalConsole": true,
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:\\mingw64\\bin\\gdb.exe",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "BUILD WITH GCC COMPILER" // this part should be same with tasks.json -->"label":
+    }
+    ]
+  }

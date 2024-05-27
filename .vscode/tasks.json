@@ -1,0 +1,93 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cppbuild",
+			"label": "BUILD WITH CLANG COMPILER",
+			"command": "clang++",
+			"args": [
+				"-g",
+				"-std=c++20",
+				"${workspaceFolder}\\*.cpp",
+				"-o",
+				"${workspaceFolder}\\Pong.exe", // make the .exe file from Root
+				"-IC:\\C++Libraries\\SDL2-2.28.5\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2-2.28.5\\x86_64-w64-mingw32\\lib", 
+				"-IC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\lib",
+				"-IC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\lib",
+				"-lSDL2",
+				"-lSDL2_image",
+				"-lSDL2_ttf"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}" // make the .exe file from Root
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build",
+			"detail": "compiler: clang++"
+		},
+		{
+			"type": "cppbuild",
+			"label": "BUILD WITH GCC COMPILER",
+			"command": "C:\\mingw64\\bin\\g++.exe",
+			"args": [
+				"-g",
+				"-std=c++20",
+				"${workspaceFolder}\\*.cpp",
+				"-o",
+				"${workspaceFolder}\\Pong.exe",
+				"-IC:\\C++Libraries\\SDL2-2.28.5\\x86_64-w64-mingw32\\include\\SDL2", 
+				"-LC:\\C++Libraries\\SDL2-2.28.5\\x86_64-w64-mingw32\\lib", 
+				"-IC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\lib",
+				"-IC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\lib",
+				"-lSDL2",
+				"-lSDL2_image",
+				"-lSDL2_ttf"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build",
+			"detail": "compiler: C:\\mingw64\\bin\\g++.exe"
+		},
+		{
+			"type": "cppbuild",
+			"label": "Build with MSVC",
+			"command": "cl.exe",
+			"args": [
+				"/Zi",
+				"/std:c++latest",
+				"/EHsc",
+				"/Fe:",
+				"${workspaceFolder}\\Pong.exe",
+				"${workspaceFolder}\\*.cpp",
+				"-IC:\\C++Libraries\\SDL2-2.28.5\\x86_64-w64-mingw32\\include\\SDL2", 
+				"-LC:\\C++Libraries\\SDL2-2.28.5\\x86_64-w64-mingw32\\lib", 
+				"-IC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\lib",
+				"-IC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\lib",
+				"-lSDL2",
+				"-lSDL2_image",
+				"-lSDL2_ttf"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build",
+			"detail": "derleyici: cl.exe"
+		}
+	]
+}
