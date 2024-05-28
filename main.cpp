@@ -22,10 +22,13 @@ bool bPressUp{false};
 bool bPressDown{false};
 const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
 float paddleSpeed = 300.f;
-Uint32 lastTime;
-Uint32 currentTime;
-float deltatime;
-
+Uint32 lastTime = 0;
+Uint32 currentTime = 0;
+float deltatime = 0;
+float ballMovementAngle = 45.f; 
+int ballSpeed = 700;   
+bool isPaused = false;
+Uint32 pauseTime = 0;
 
 
 SDL_Rect leftPaddle{0, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
@@ -113,6 +116,64 @@ void Update(float deltaSeconds)
    }
 }
 
+
+
+void ResetBall()
+{
+   ball.x = SCREEN_WIDTH/2;
+   ball.y = SCREEN_HEIGHT/2;
+   ballMovementAngle = 45.0f; 
+   isPaused = true;
+   pauseTime = SDL_GetTicks();
+}
+void MoveBall(float deltaSeconds)
+{
+   if (isPaused)
+   {
+      if (SDL_GetTicks() - pauseTime > 2000)
+      {
+         isPaused = false;
+      }
+      return;
+   }
+
+    // Convert angle to radians
+    float angleRadians = ballMovementAngle * M_PI / 180.0f;
+    
+    // Update ball position
+    ball.x += static_cast<int>(ballSpeed * deltaSeconds * std::cos(angleRadians));
+    ball.y += static_cast<int>(ballSpeed * deltaSeconds * std::sin(angleRadians));
+
+    // Handle collision with left and right walls
+    if (ball.x >= (SCREEN_WIDTH - BALL_SIZE) || ball.x <= 0)
+    {
+      ResetBall();
+      return;
+    }
+
+    // Handle collision with top and bottom walls
+    if (ball.y >= (SCREEN_HEIGHT - BALL_SIZE) || ball.y <= 0)
+    {
+        ballMovementAngle = -ballMovementAngle;
+        if (ball.y >= (SCREEN_HEIGHT - BALL_SIZE)) ball.y = SCREEN_HEIGHT - BALL_SIZE - 1;
+        if (ball.y <= 0) ball.y = 1;
+    }
+
+    // Handle collision with right paddle
+    if(SDL_HasIntersection(&ball, & rightPaddle))
+    {
+      ballMovementAngle = 180.0f - ballMovementAngle;
+      ball.x = rightPaddle.x - rightPaddle.w;
+    }
+
+   // Handle collision with left  paddle
+    if(SDL_HasIntersection(&ball, & leftPaddle))
+    {
+      ballMovementAngle = 180.0f - ballMovementAngle;
+      ball.x = leftPaddle.x + leftPaddle.w;
+    }
+}
+
 void Close()
 {
    SDL_DestroyRenderer(renderer);
@@ -145,6 +206,7 @@ int main(int argc, char **argv)
             }
          }
          Update(deltatime);
+         MoveBall(deltatime);
          Render();
 
          // Simulate slower frame rate
