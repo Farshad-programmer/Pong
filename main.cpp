@@ -3,19 +3,38 @@
 #include <stdio.h>
 #include "SDL.h"
 #include "SDL_image.h"
-#include "main.h"
-
+#include <cmath>
 //-----------------
 #undef main
 //-----------------
 
 // global variables
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
+#define PADDLE_WIDTH 50
+#define PADDLE_HEIGHT SCREEN_HEIGHT/3
+#define BALL_SIZE 10
 SDL_Renderer* renderer;
 SDL_Window* window;
 bool quit = false;
 SDL_Event e;
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+bool bPressUp{false};
+bool bPressDown{false};
+const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
+float paddleSpeed = 300.f;
+Uint32 lastTime;
+Uint32 currentTime;
+float deltatime;
+
+
+
+SDL_Rect leftPaddle{0, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
+SDL_Rect rightPaddle{SCREEN_WIDTH - PADDLE_WIDTH, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
+SDL_Rect ball{SCREEN_WIDTH/2, SCREEN_HEIGHT/2, BALL_SIZE, BALL_SIZE };
+
+
+
+
 
 // global functions
 bool Init()
@@ -49,6 +68,51 @@ bool Init()
    return success;
 }
 
+void CalculateDeltaTime()
+{
+   currentTime = SDL_GetTicks();
+   deltatime = (currentTime - lastTime) / 1000.f;// Convert to seconds
+   lastTime = currentTime;
+}
+
+void Render()
+{
+   //render background and make it black 
+   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+   SDL_RenderClear(renderer);
+
+   //render paddles and make them white 
+   SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+   SDL_RenderFillRect(renderer, &leftPaddle);
+   SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+   SDL_RenderFillRect(renderer, &rightPaddle);
+   SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+   SDL_RenderFillRect(renderer, &ball);
+
+   // update Render
+   SDL_RenderPresent(renderer);
+}
+
+void Update(float deltaSeconds)
+{
+   if (currentKeyStates[SDL_SCANCODE_W])
+   {
+      if(leftPaddle.y > 0) leftPaddle.y -= paddleSpeed * deltaSeconds;
+   }
+   if (currentKeyStates[SDL_SCANCODE_S])
+   {
+      if(leftPaddle.y < SCREEN_HEIGHT - PADDLE_HEIGHT) leftPaddle.y += paddleSpeed * deltaSeconds;
+   }
+   if (currentKeyStates[SDL_SCANCODE_UP])
+   {
+      if(rightPaddle.y > 0) rightPaddle.y -= paddleSpeed * deltaSeconds;
+   }
+   if (currentKeyStates[SDL_SCANCODE_DOWN])
+   {
+      if(rightPaddle.y < SCREEN_HEIGHT - PADDLE_HEIGHT) rightPaddle.y += paddleSpeed * deltaSeconds;
+   }
+}
+
 void Close()
 {
    SDL_DestroyRenderer(renderer);
@@ -68,24 +132,31 @@ int main(int argc, char **argv)
    }
    else
    {
+      lastTime = SDL_GetTicks();// Start time
+
       while (!quit)
       {
+         CalculateDeltaTime();
          while (SDL_PollEvent(&e) != 0)
          {
-            if(e.type == SDL_QUIT)
+            if (e.type == SDL_QUIT)
             {
                quit = true;
             }
          }
-         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-         SDL_RenderClear(renderer);
+         Update(deltatime);
+         Render();
 
-         SDL_RenderPresent(renderer);
-         
+         // Simulate slower frame rate
+         //SDL_Delay(100); //Add 100ms delay per frame
       }
    }
-
    Close();
    return 0 ;  
 }
+
+
+
+
+
 
