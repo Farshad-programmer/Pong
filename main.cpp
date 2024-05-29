@@ -5,6 +5,8 @@
 #include "SDL_image.h"
 #include "SDL_ttf.h"
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
 //-----------------
 #undef main
 //-----------------
@@ -44,7 +46,7 @@ SDL_Event e;
 bool bPressUp{false};
 bool bPressDown{false};
 const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
-float paddleSpeed = 300.f;
+float paddleSpeed = 1200.f;
 
 // deltatime
 Uint32 lastTime = 0;
@@ -167,7 +169,32 @@ void ResetBall(std::string pointFor)
 
    ball.x = SCREEN_WIDTH/2;
    ball.y = SCREEN_HEIGHT/2;
-   ballMovementAngle = 45.0f; 
+
+   // Initialize random seed
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+   // Generate a random number between 0 and 3
+   int randomNumber = std::rand() % 4;
+   switch (randomNumber)
+   {
+   case 0:
+      ballMovementAngle = -30.0f; 
+      break;
+   case 1:
+      ballMovementAngle = 25.0f; 
+      break;
+   case 2:
+      ballMovementAngle = 215.0f; 
+      break;
+   case 3:
+      ballMovementAngle = 160.0f; 
+      break;
+   
+   default:
+      ballMovementAngle = 40.0f; 
+      break;
+   }
+ 
    isPaused = true;
    pauseTime = SDL_GetTicks();
 }
@@ -177,6 +204,18 @@ void StartGame()
    gameState = EGS_PongGame;
    lastTime = SDL_GetTicks();
    ResetBall(""); // a small delay before game start
+}
+
+void BackToMainMenu()
+{
+   isPlayerPausedGame = false;
+   gameState = EGS_Menu;
+   playerOne = 0;
+   playerTwo = 0;
+   leftPaddle.x = 0;
+   leftPaddle.y = SCREEN_HEIGHT/3;
+   rightPaddle.x = SCREEN_WIDTH - PADDLE_WIDTH;
+   rightPaddle.y = SCREEN_HEIGHT/3;
 }
 
 void HandleMenuEvents(SDL_Event e)
@@ -249,6 +288,8 @@ void HandleMenuEvents(SDL_Event e)
 
 void HandlePauseEvents(SDL_Event e)
 {
+   if(!isPlayerPausedGame)return;
+
    if(e.type == SDL_MOUSEMOTION)
    {
       int x, y;
@@ -285,14 +326,7 @@ void HandlePauseEvents(SDL_Event e)
       )
       {
          buttonColor = BLUE; 
-         isPlayerPausedGame = false;
-         gameState = EGS_Menu;
-         playerOne = 0;
-         playerTwo = 0;
-         leftPaddle.x = 0;
-         leftPaddle.y = SCREEN_HEIGHT/3;
-         rightPaddle.x = SCREEN_WIDTH - PADDLE_WIDTH;
-         rightPaddle.y = SCREEN_HEIGHT/3;
+         BackToMainMenu();
       }
       else if (x > exitGameButton.x && x < exitGameButton.x + exitGameButton.w && 
          y > exitGameButton.y && y < exitGameButton.y + exitGameButton.h
@@ -320,6 +354,7 @@ void HandlePauseEvents(SDL_Event e)
       }
    }
 }
+
 void RenderMenu()
 {
    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
@@ -453,7 +488,9 @@ void RenderPongGame()
    SDL_RenderFillRect(renderer, &leftPaddle);
    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
    SDL_RenderFillRect(renderer, &rightPaddle);
-   SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+   // render ball and make it yellow
+   SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
    SDL_RenderFillRect(renderer, &ball);
 }
 
@@ -464,7 +501,7 @@ void CheckPauseGame()
 
 void UpdateGameInput(float deltaSeconds)
 {
-   if(isPlayerPausedGame || isPaused) return;
+   if(isPlayerPausedGame) return;
 
    if (currentKeyStates[SDL_SCANCODE_W])
    {
@@ -639,7 +676,6 @@ int main(int argc, char **argv)
             }
             if(gameState == EGS_Menu) HandleMenuEvents(e);
             if(gameState == EGS_PongGame) HandlePauseEvents(e);
-            
          }
          //Update control game states
          ControlGameStates();
