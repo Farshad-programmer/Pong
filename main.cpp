@@ -4,6 +4,7 @@
 #include "SDL.h"
 #include "SDL_image.h"
 #include "SDL_ttf.h"
+#include "SDL_mixer.h"
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
@@ -75,6 +76,15 @@ int textHeight {0};
 int playerOne {0};
 int playerTwo {0};
 
+// music
+Mix_Music* backgroundGameplayMusic = nullptr;
+Mix_Chunk* paddle1 = nullptr;
+Mix_Chunk* paddle2 = nullptr;
+
+
+int soundChannel1{0};
+int soundChanne2{0};
+
 SDL_Rect leftPaddle{0, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
 SDL_Rect rightPaddle{SCREEN_WIDTH - PADDLE_WIDTH, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
 SDL_Rect ball{SCREEN_WIDTH/2, SCREEN_HEIGHT/2, BALL_SIZE, BALL_SIZE };
@@ -104,11 +114,28 @@ bool Init()
    } 
 
    
-    if (TTF_Init() == -1)
+   if (TTF_Init() == -1)
    {
         std::cerr << "SDL_ttf could not initialize! TTF Error: " << TTF_GetError() << std::endl;
         return false;
    }
+
+   if (Mix_Init(MIX_INIT_MP3 | MIX_INIT_WAVPACK) < 0)
+   {
+        std::cerr << "SDL_mixer could not initialize! Mixer Error: " << Mix_GetError() << std::endl;
+        return false;
+   }
+
+   // Open audio device
+   if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+   {
+      std::cerr << "SDL_mixer could not open audio! Mixer Error: " << Mix_GetError() << std::endl;
+      return false;
+   }
+
+   
+    // Allocate 16 mixing channels
+   Mix_AllocateChannels(16);
 
    window = SDL_CreateWindow("Pong Game", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
    if(window == nullptr)
@@ -139,6 +166,78 @@ bool Init()
    }
    return success;
 }
+
+Mix_Music* LoadMusic(std::string path)
+{
+   Mix_Music* newSound = Mix_LoadMUS(path.c_str());
+   if(newSound == nullptr)
+   {
+      std::cerr << "SDL_mixer could not load sound! Mixer Error: " << Mix_GetError() << std::endl;
+   }
+   return newSound;
+}
+
+void PlayMusic(Mix_Music* sound, bool hasQuickFadeout = false)
+{
+   if(sound)
+   { 
+      if(Mix_PlayMusic(sound, -1) == -1)
+      {
+         std::cerr << "Failed to play music! Mixer Error: " << Mix_GetError() << std::endl;
+      }
+      Mix_VolumeMusic(10);
+      if(hasQuickFadeout)
+      {
+         Mix_FadeOutMusic(50);
+      }
+      
+   }
+}
+
+void StopMusic(Mix_Music* sound)
+{
+   if(sound)
+   {
+      Mix_PauseMusic();
+   }
+}
+
+Mix_Chunk* LoadSound(std::string path)
+{
+   Mix_Chunk* newSound = Mix_LoadWAV(path.c_str());
+   if(newSound == nullptr)
+   {
+      std::cerr << "SDL_mixer could not load sound! Mixer Error: " << Mix_GetError() << std::endl;
+   }
+   return newSound;
+}
+
+void PlaySound(Mix_Chunk* sound,int channel, bool hasQuickFadeout = false)
+{
+   if(sound)
+   { 
+      switch (channel)
+      {
+      case 1:
+         soundChannel1 = Mix_PlayChannel(-1, sound, 0); 
+         break;
+      case 2:
+         soundChanne2 = Mix_PlayChannel(-1, sound, 0);
+         break;
+      default:
+         break;
+      }
+   }
+}
+
+void StopSound(Mix_Chunk* sound, int channel)
+{
+   if(sound)
+   {
+      Mix_HaltChannel(channel);
+   }
+}
+
 
 SDL_Texture* LoadTexture(const std::string& path)
 {
@@ -204,6 +303,8 @@ void StartGame()
    gameState = EGS_PongGame;
    lastTime = SDL_GetTicks();
    ResetBall(""); // a small delay before game start
+   backgroundGameplayMusic = LoadMusic("assets/sounds/bg.mp3");
+   PlayMusic(backgroundGameplayMusic);
 }
 
 void BackToMainMenu()
@@ -216,6 +317,7 @@ void BackToMainMenu()
    leftPaddle.y = SCREEN_HEIGHT/3;
    rightPaddle.x = SCREEN_WIDTH - PADDLE_WIDTH;
    rightPaddle.y = SCREEN_HEIGHT/3;
+   StopMusic(backgroundGameplayMusic);
 }
 
 void HandleMenuEvents(SDL_Event e)
@@ -521,6 +623,26 @@ void UpdateGameInput(float deltaSeconds)
    }
 }
 
+void PlayPaddleSound()
+{
+   int randomNumber = std::rand() % 2;
+   switch (randomNumber)
+   {
+   case 0:
+      paddle1 = LoadSound("assets/sounds/paddle1.wav");
+      PlaySound(paddle1, 1, true); 
+      break;
+   case 1:
+      paddle2 = LoadSound("assets/sounds/paddle2.wav");
+      PlaySound(paddle2, 2, true); 
+      break;
+   default:
+      paddle1 = LoadSound("assets/sounds/paddle1.wav");
+      PlaySound(paddle1, 1, true); 
+      break;
+   }
+}
+
 void MoveBall(float deltaSeconds)
 {
    if (isPaused)
@@ -571,6 +693,8 @@ void MoveBall(float deltaSeconds)
     {
       ballMovementAngle = 180.0f - ballMovementAngle;
       ball.x = rightPaddle.x - rightPaddle.w;
+
+      PlayPaddleSound();
     }
 
    // Handle collision with left  paddle
@@ -578,8 +702,11 @@ void MoveBall(float deltaSeconds)
     {
       ballMovementAngle = 180.0f - ballMovementAngle;
       ball.x = leftPaddle.x + leftPaddle.w;
+
+      PlayPaddleSound();
     }
 }
+
 
 void ControlGameStates()
 {
@@ -636,11 +763,21 @@ void Close()
    SDL_DestroyRenderer(renderer);
    SDL_DestroyWindow(window);
    TTF_CloseFont(gameplayFont);
+   Mix_CloseAudio();
+   Mix_FreeMusic(backgroundGameplayMusic);
+   Mix_FreeChunk(paddle1);
+   Mix_FreeChunk(paddle2);
+
+
 
    gameplayFont = nullptr;
    renderer = nullptr;
    window = nullptr;
    menuBackgroundTexture = nullptr;
+   backgroundGameplayMusic = nullptr;
+   paddle1 = nullptr;
+   paddle2 = nullptr;
+
 
    SDL_Quit();
    TTF_Quit();

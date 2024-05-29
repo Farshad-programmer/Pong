@@ -17,9 +17,12 @@
 				"-LC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\lib",
 				"-IC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\include\\SDL2",
 				"-LC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\lib",
+				"-IC:\\C++Libraries\\SDL2_mixer-2.8.0\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_mixer-2.8.0\\x86_64-w64-mingw32\\lib",
 				"-lSDL2",
 				"-lSDL2_image",
-				"-lSDL2_ttf"
+				"-lSDL2_ttf",
+				"-lSDL2_mixer"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}" // make the .exe file from Root
@@ -46,9 +49,12 @@
 				"-LC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\lib",
 				"-IC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\include\\SDL2",
 				"-LC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\lib",
+				"-IC:\\C++Libraries\\SDL2_mixer-2.8.0\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_mixer-2.8.0\\x86_64-w64-mingw32\\lib",
 				"-lSDL2",
 				"-lSDL2_image",
-				"-lSDL2_ttf"
+				"-lSDL2_ttf",
+				"-lSDL2_mixer"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
@@ -76,9 +82,12 @@
 				"-LC:\\C++Libraries\\SDL2_image-2.8.2\\x86_64-w64-mingw32\\lib",
 				"-IC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\include\\SDL2",
 				"-LC:\\C++Libraries\\SDL2_ttf-2.22.0\\x86_64-w64-mingw32\\lib",
+				"-IC:\\C++Libraries\\SDL2_mixer-2.8.0\\x86_64-w64-mingw32\\include\\SDL2",
+				"-LC:\\C++Libraries\\SDL2_mixer-2.8.0\\x86_64-w64-mingw32\\lib",
 				"-lSDL2",
 				"-lSDL2_image",
-				"-lSDL2_ttf"
+				"-lSDL2_ttf",
+				"-lSDL2_mixer"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
