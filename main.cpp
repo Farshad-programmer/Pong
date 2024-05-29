@@ -17,18 +17,25 @@
 #define BALL_SIZE 10
 SDL_Renderer* renderer = nullptr;
 SDL_Window* window = nullptr;
+SDL_Texture* menuBackgroundTexture;
 bool quit = false;
 SDL_Event e;
 bool bPressUp{false};
 bool bPressDown{false};
 const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
 float paddleSpeed = 300.f;
+
+// deltatime
 Uint32 lastTime = 0;
 Uint32 currentTime = 0;
 float deltatime = 0;
+
+
 float ballMovementAngle = 40.f; 
-int ballSpeed = 700;   
-bool isPaused = false;
+int ballSpeed = 700; 
+
+// pause
+bool isPaused = true;
 Uint32 pauseTime = 0;
 
 // text variables
@@ -45,9 +52,13 @@ SDL_Rect leftPaddle{0, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
 SDL_Rect rightPaddle{SCREEN_WIDTH - PADDLE_WIDTH, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
 SDL_Rect ball{SCREEN_WIDTH/2, SCREEN_HEIGHT/2, BALL_SIZE, BALL_SIZE };
 
+enum EGameState
+{
+   EGS_Menu,
+   EGS_PongGame
+};
 
-
-
+EGameState gameState = EGS_Menu;
 
 // global functions
 bool Init()
@@ -95,6 +106,42 @@ bool Init()
    return success;
 }
 
+SDL_Texture* LoadTexture(const std::string& path)
+{
+   SDL_Texture* newTexture = nullptr;
+   SDL_Surface* loadedSurface = IMG_Load(path.c_str());
+   if(loadedSurface == nullptr)
+   {
+      std::cerr << "Unable to load image " << path << "! IMG_Error: " << IMG_GetError() << std::endl;
+   }
+   else
+   {
+      newTexture = SDL_CreateTextureFromSurface(renderer, loadedSurface);
+      if(newTexture == nullptr)
+      {
+         std::cerr << "Unable to create texture from " << path << "! SDL_Error: " << SDL_GetError() << std::endl;
+      }
+
+      SDL_FreeSurface(loadedSurface);
+   }
+
+   return newTexture;
+}
+
+void RenderMenu()
+{
+   SDL_RenderClear(renderer);
+   menuBackgroundTexture = LoadTexture("assets/bgmenu.png");
+   if(menuBackgroundTexture == nullptr)
+   {
+      std::cerr << "Failed to load menu background texture! \n " ;
+   }
+   else
+   {
+      SDL_RenderCopy(renderer, menuBackgroundTexture, nullptr, nullptr);
+   }
+}
+
 void CalculateDeltaTime()
 {
    currentTime = SDL_GetTicks();
@@ -129,7 +176,7 @@ void RenderText(int playerScore, int x, int y)
    SDL_DestroyTexture(textTexture);
 }
 
-void Render()
+void RenderPongGame()
 {
    //render background and make it black 
    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -144,7 +191,7 @@ void Render()
    SDL_RenderFillRect(renderer, &ball);
 }
 
-void Update(float deltaSeconds)
+void UpdateGameInput(float deltaSeconds)
 {
    if (currentKeyStates[SDL_SCANCODE_W])
    {
@@ -233,6 +280,7 @@ void MoveBall(float deltaSeconds)
 
 void Close()
 {
+   SDL_DestroyTexture(menuBackgroundTexture);
    SDL_DestroyRenderer(renderer);
    SDL_DestroyWindow(window);
    TTF_CloseFont(font);
@@ -240,26 +288,33 @@ void Close()
    font = nullptr;
    renderer = nullptr;
    window = nullptr;
+   menuBackgroundTexture = nullptr;
 
    SDL_Quit();
    TTF_Quit();
-   //IMG_Quit();
+   IMG_Quit();
 }
 
 int main(int argc, char **argv)
 {
-
    if(!Init())
    {
       std::cerr << "something is wrong in initializing stuff in Init() function !\n";
    }
    else
    {
+      // ------------ this part later need to be created in a seprate function when the pong game starts from the menu
       lastTime = SDL_GetTicks();// Start time
-
+      ResetBall(""); // a small delay before game start
+      // -----------------------------------------------------------------------------------------------------------
+      if(gameState == EGS_Menu)
+      {
+         RenderMenu();
+      }
       while (!quit)
       {
-         CalculateDeltaTime();
+         if(gameState == EGS_PongGame) CalculateDeltaTime();
+
          while (SDL_PollEvent(&e) != 0)
          {
             if (e.type == SDL_QUIT)
@@ -267,12 +322,14 @@ int main(int argc, char **argv)
                quit = true;
             }
          }
-         Update(deltatime);
-         MoveBall(deltatime);
-         Render();
-         RenderText(playerOne, ((SCREEN_WIDTH / 2) - 50), 50);
-         RenderText(playerTwo, ((SCREEN_WIDTH / 2) + 50), 50);
-
+         if(gameState == EGS_PongGame)
+         {
+            UpdateGameInput(deltatime);
+            MoveBall(deltatime);
+            RenderPongGame();
+            RenderText(playerOne, ((SCREEN_WIDTH / 2) - 50), 50);
+            RenderText(playerTwo, ((SCREEN_WIDTH / 2) + 50), 50);
+         }
 
          // update Render
          SDL_RenderPresent(renderer);
