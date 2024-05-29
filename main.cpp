@@ -46,7 +46,7 @@ Uint32 lastTime = 0;
 Uint32 currentTime = 0;
 float deltatime = 0;
 
-
+// ball
 float ballMovementAngle = 40.f; 
 int ballSpeed = 700; 
 
@@ -55,8 +55,10 @@ bool isPaused = true;
 Uint32 pauseTime = 0;
 
 // text variables
-TTF_Font* font = nullptr;
+TTF_Font* gameplayFont = nullptr;
+TTF_Font* buttonFont = nullptr;
 SDL_Texture* textTexture = nullptr;
+SDL_Texture* buttonTextTexture = nullptr;
 int textWidth {0};
 int textHeight {0};
 
@@ -113,10 +115,17 @@ bool Init()
       success = false;
    } 
 
-   font = TTF_OpenFont("assets/fonts/lazy.ttf", 28);
-   if(font == nullptr)
+   gameplayFont = TTF_OpenFont("assets/fonts/lazy.ttf", 28);
+   if(gameplayFont == nullptr)
    {
-      std::cerr << "Failed to load font! TTF Error: " << TTF_GetError() << std::endl;
+      std::cerr << "Failed to load gameplayfont! TTF Error: " << TTF_GetError() << std::endl;
+      success = false;
+   }
+
+   buttonFont = TTF_OpenFont("assets/fonts/lazy.ttf", 22);
+   if(buttonFont == nullptr)
+   {
+      std::cerr << "Failed to load button font! TTF Error: " << TTF_GetError() << std::endl;
       success = false;
    }
    return success;
@@ -142,6 +151,25 @@ SDL_Texture* LoadTexture(const std::string& path)
    }
 
    return newTexture;
+}
+
+void ResetBall(std::string pointFor)
+{
+   if(pointFor == "p1") playerOne++;
+   if(pointFor == "p2") playerTwo++;
+
+   ball.x = SCREEN_WIDTH/2;
+   ball.y = SCREEN_HEIGHT/2;
+   ballMovementAngle = 45.0f; 
+   isPaused = true;
+   pauseTime = SDL_GetTicks();
+}
+
+void StartGame()
+{
+   gameState = EGS_PongGame;
+   lastTime = SDL_GetTicks();
+   ResetBall(""); // a small delay before game start
 }
 
 void HandleMenuEvents(SDL_Event e)
@@ -182,7 +210,7 @@ void HandleMenuEvents(SDL_Event e)
       )
       {
          buttonColor = BLUE; 
-         gameState = EGS_PongGame; // start game
+         StartGame();
       }
       else if (x > quitButton.x && x < quitButton.x + quitButton.w && 
          y > quitButton.y && y < quitButton.y + quitButton.h
@@ -246,10 +274,31 @@ void RenderMenu()
       SDL_RenderFillRect(renderer, &quitButton);
       SDL_RenderFillRect(renderer, &startButton);
    }
-   
+}
 
+void RenderButtonsText(const char* text, int x, int y)
+{
+   SDL_Color buttonTextColor = {0, 0, 0, 255};
+   SDL_Surface* buttonTextSurface = TTF_RenderText_Solid(buttonFont, text,buttonTextColor);
+   if(buttonTextSurface == nullptr)
+   {
+      std::cerr << "Unable to render Buttons Text surface! TTF Error: " << TTF_GetError() << std::endl;
+      return;
+   }
+   buttonTextTexture = SDL_CreateTextureFromSurface(renderer, buttonTextSurface);
+   if(buttonTextSurface == nullptr)
+   {
+      std::cerr << "Unable to create button texture from rendered text! SDL Error: " << SDL_GetError() << std::endl;
+      return;
+   }
 
+   int buttnTextWidth = buttonTextSurface->w;
+   int buttonTextHeight = buttonTextSurface->h;
+   SDL_FreeSurface(buttonTextSurface);
 
+   SDL_Rect renderQuad = {x - buttnTextWidth / 2, y - buttonTextHeight / 2, buttnTextWidth, buttonTextHeight};
+   SDL_RenderCopy(renderer, buttonTextTexture, nullptr, &renderQuad);
+   SDL_DestroyTexture(buttonTextTexture);
 }
 
 void CalculateDeltaTime()
@@ -259,12 +308,12 @@ void CalculateDeltaTime()
    lastTime = currentTime;
 }
 
-void RenderText(int playerScore, int x, int y)
+void RenderScoreText(int playerScore, int x, int y)
 {
    std::string scoreText = std::to_string(playerScore);
    const char* charStr = scoreText.c_str();
    SDL_Color textColor = {255,255,255};
-   SDL_Surface* textSurface = TTF_RenderText_Solid(font, charStr,textColor);
+   SDL_Surface* textSurface = TTF_RenderText_Solid(gameplayFont, charStr,textColor);
    if(textSurface == nullptr)
    {
       std::cerr << "Unable to render text surface! TTF Error: " << TTF_GetError() << std::endl;
@@ -319,18 +368,6 @@ void UpdateGameInput(float deltaSeconds)
    {
       if(rightPaddle.y < SCREEN_HEIGHT - PADDLE_HEIGHT) rightPaddle.y += paddleSpeed * deltaSeconds;
    }
-}
-
-void ResetBall(std::string pointFor)
-{
-   if(pointFor == "p1") playerOne++;
-   if(pointFor == "p2") playerTwo++;
-
-   ball.x = SCREEN_WIDTH/2;
-   ball.y = SCREEN_HEIGHT/2;
-   ballMovementAngle = 45.0f; 
-   isPaused = true;
-   pauseTime = SDL_GetTicks();
 }
 
 void MoveBall(float deltaSeconds)
@@ -388,14 +425,32 @@ void MoveBall(float deltaSeconds)
     }
 }
 
+void ControlGameStates()
+{
+   if(gameState == EGS_PongGame)
+   {
+      UpdateGameInput(deltatime);
+      MoveBall(deltatime);
+      RenderPongGame();
+      RenderScoreText(playerOne, ((SCREEN_WIDTH / 2) - 50), 50);
+      RenderScoreText(playerTwo, ((SCREEN_WIDTH / 2) + 50), 50);
+   }
+
+   if(gameState == EGS_Menu)
+   {
+      RenderButtonsText("Start", 100, 225);
+      RenderButtonsText("Quit", 100, 295);
+   }
+}
+
 void Close()
 {
    SDL_DestroyTexture(menuBackgroundTexture);
    SDL_DestroyRenderer(renderer);
    SDL_DestroyWindow(window);
-   TTF_CloseFont(font);
+   TTF_CloseFont(gameplayFont);
 
-   font = nullptr;
+   gameplayFont = nullptr;
    renderer = nullptr;
    window = nullptr;
    menuBackgroundTexture = nullptr;
@@ -413,10 +468,7 @@ int main(int argc, char **argv)
    }
    else
    {
-      // ------------ this part later need to be created in a seprate function when the pong game starts from the menu
-      lastTime = SDL_GetTicks();// Start time
-      ResetBall(""); // a small delay before game start
-      // -----------------------------------------------------------------------------------------------------------
+      if(gameState == EGS_Menu) RenderButtonsText("Start game", 50, 200);
 
       while (!quit)
       {
@@ -428,17 +480,11 @@ int main(int argc, char **argv)
             {
                quit = true;
             }
-            if(gameState == EGS_Menu)HandleMenuEvents(e);
+            if(gameState == EGS_Menu) HandleMenuEvents(e);
             
          }
-         if(gameState == EGS_PongGame)
-         {
-            UpdateGameInput(deltatime);
-            MoveBall(deltatime);
-            RenderPongGame();
-            RenderText(playerOne, ((SCREEN_WIDTH / 2) - 50), 50);
-            RenderText(playerTwo, ((SCREEN_WIDTH / 2) + 50), 50);
-         }
+         //Update control game states
+         ControlGameStates();
 
          // update Render
          SDL_RenderPresent(renderer);
