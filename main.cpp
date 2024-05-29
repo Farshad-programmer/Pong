@@ -27,11 +27,16 @@ SDL_Window* window = nullptr;
 
 //main menu
 SDL_Texture* menuBackgroundTexture;
-SDL_Rect startButton = {50, 200, 100, 50};
-SDL_Rect quitButton = {50, 270, 100, 50};
+SDL_Rect startButton = {50, 200, 100, 40};
+SDL_Rect quitButton = {50, 270, 100, 40};
+SDL_Rect menuButton = {SCREEN_WIDTH / 2 - menuButton.w / 2 , SCREEN_HEIGHT/2 + 20 , 100, 40};
+SDL_Rect exitGameButton = {SCREEN_WIDTH / 2 - exitGameButton.w / 2 , SCREEN_HEIGHT/2 + 70 , 100, 40};
 SDL_Color buttonColor = WHITE ;
 bool startButtonHovered{false};
 bool quitButtonHovered{false};
+
+bool menuButtonHovered{false};
+bool ExitButtonHovered{false};
 
 // gameplay
 bool quit = false;
@@ -53,12 +58,14 @@ int ballSpeed = 700;
 // pause
 bool isPaused = true;
 Uint32 pauseTime = 0;
+bool isPlayerPausedGame{false};
 
 // text variables
 TTF_Font* gameplayFont = nullptr;
 TTF_Font* buttonFont = nullptr;
 SDL_Texture* textTexture = nullptr;
 SDL_Texture* buttonTextTexture = nullptr;
+SDL_Texture* pauseGameTextTexture = nullptr;
 int textWidth {0};
 int textHeight {0};
 
@@ -240,6 +247,79 @@ void HandleMenuEvents(SDL_Event e)
    
 }
 
+void HandlePauseEvents(SDL_Event e)
+{
+   if(e.type == SDL_MOUSEMOTION)
+   {
+      int x, y;
+      SDL_GetMouseState(&x, &y);
+      if(x > menuButton.x && x < menuButton.x + menuButton.w && 
+         y > menuButton.y && y < menuButton.y + menuButton.h
+      )
+      {
+         menuButtonHovered = true;
+         ExitButtonHovered = false;
+         buttonColor = RED;
+      }
+      else if(x > exitGameButton.x && x < exitGameButton.x + exitGameButton.w && 
+         y > exitGameButton.y && y < exitGameButton.y + exitGameButton.h
+      )
+      {
+         menuButtonHovered = false;
+         ExitButtonHovered = true;
+         buttonColor = RED;
+      }
+      else
+      {
+         menuButtonHovered = false;
+         ExitButtonHovered = false;
+         buttonColor = WHITE;
+      } 
+   }
+   else if(e.type == SDL_MOUSEBUTTONDOWN)
+   {
+      int x, y;
+      SDL_GetMouseState(&x, &y);
+      if(x > menuButton.x && x < menuButton.x + menuButton.w && 
+         y > menuButton.y && y < menuButton.y + menuButton.h
+      )
+      {
+         buttonColor = BLUE; 
+         isPlayerPausedGame = false;
+         gameState = EGS_Menu;
+         playerOne = 0;
+         playerTwo = 0;
+         leftPaddle.x = 0;
+         leftPaddle.y = SCREEN_HEIGHT/3;
+         rightPaddle.x = SCREEN_WIDTH - PADDLE_WIDTH;
+         rightPaddle.y = SCREEN_HEIGHT/3;
+      }
+      else if (x > exitGameButton.x && x < exitGameButton.x + exitGameButton.w && 
+         y > exitGameButton.y && y < exitGameButton.y + exitGameButton.h
+      )
+      {
+         buttonColor = BLUE;
+         quit = true; // quit game
+      }
+   }
+   else if (e.type == SDL_MOUSEBUTTONUP)
+   {
+      int x, y;
+      SDL_GetMouseState(&x, &y);
+      if(x > menuButton.x && x < menuButton.x + menuButton.w && 
+         y > menuButton.y && y < menuButton.y + menuButton.h
+      )
+      {
+         buttonColor = RED; 
+      }
+      else if (x > exitGameButton.x && x < exitGameButton.x + exitGameButton.w && 
+         y > exitGameButton.y && y < exitGameButton.y + exitGameButton.h
+      )
+      {
+         buttonColor = RED;
+      }
+   }
+}
 void RenderMenu()
 {
    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
@@ -301,6 +381,33 @@ void RenderButtonsText(const char* text, int x, int y)
    SDL_DestroyTexture(buttonTextTexture);
 }
 
+void RenderPauseGameText(const char* text, int x, int y)
+{
+   SDL_Color PauseGameTextColor = {255, 255, 255, 255};
+   SDL_Surface* PausegameTextSurface = TTF_RenderText_Solid(gameplayFont, text,PauseGameTextColor);
+   if(PausegameTextSurface == nullptr)
+   {
+      std::cerr << "Unable to render Buttons Text surface! TTF Error: " << TTF_GetError() << std::endl;
+      return;
+   }
+   pauseGameTextTexture = SDL_CreateTextureFromSurface(renderer, PausegameTextSurface);
+   if(PausegameTextSurface == nullptr)
+   {
+      std::cerr << "Unable to create button texture from rendered text! SDL Error: " << SDL_GetError() << std::endl;
+      return;
+   }
+
+   textWidth = PausegameTextSurface->w;
+   textHeight = PausegameTextSurface->h;
+   SDL_FreeSurface(PausegameTextSurface);
+
+   SDL_Rect renderQuad = {x - textWidth / 2, y - textHeight / 2, textWidth, textHeight};
+   
+
+   SDL_RenderCopy(renderer, pauseGameTextTexture, nullptr, &renderQuad);
+   SDL_DestroyTexture(pauseGameTextTexture);
+}
+
 void CalculateDeltaTime()
 {
    currentTime = SDL_GetTicks();
@@ -350,8 +457,15 @@ void RenderPongGame()
    SDL_RenderFillRect(renderer, &ball);
 }
 
+void CheckPauseGame()
+{
+   isPlayerPausedGame = !isPlayerPausedGame; 
+}
+
 void UpdateGameInput(float deltaSeconds)
 {
+   if(isPlayerPausedGame || isPaused) return;
+
    if (currentKeyStates[SDL_SCANCODE_W])
    {
       if(leftPaddle.y > 0) leftPaddle.y -= paddleSpeed * deltaSeconds;
@@ -378,6 +492,11 @@ void MoveBall(float deltaSeconds)
       {
          isPaused = false;
       }
+      return;
+   }
+
+   if(isPlayerPausedGame)
+   {
       return;
    }
 
@@ -434,6 +553,37 @@ void ControlGameStates()
       RenderPongGame();
       RenderScoreText(playerOne, ((SCREEN_WIDTH / 2) - 50), 50);
       RenderScoreText(playerTwo, ((SCREEN_WIDTH / 2) + 50), 50);
+      if(isPlayerPausedGame)
+      {
+         RenderPauseGameText("Game Paused!", SCREEN_WIDTH /2, SCREEN_HEIGHT /2 - 20);
+         SDL_SetRenderDrawColor(renderer, 255,255,255,255);
+         SDL_RenderFillRect(renderer, &menuButton);
+         SDL_SetRenderDrawColor(renderer, 255,255,255,255);
+         SDL_RenderFillRect(renderer, &exitGameButton);
+
+         if(menuButtonHovered)
+         {
+            SDL_SetRenderDrawColor(renderer, buttonColor.r, buttonColor.g, buttonColor.b, buttonColor.a);
+            SDL_RenderFillRect(renderer, &menuButton);
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderFillRect(renderer, &exitGameButton);
+         }
+         else if(ExitButtonHovered)
+         {
+            SDL_SetRenderDrawColor(renderer, buttonColor.r, buttonColor.g, buttonColor.b, buttonColor.a);
+            SDL_RenderFillRect(renderer, &exitGameButton);
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderFillRect(renderer, &menuButton);
+         }
+         else
+         {
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderFillRect(renderer, &exitGameButton);
+            SDL_RenderFillRect(renderer, &menuButton);
+         }
+         RenderButtonsText("Menu", SCREEN_WIDTH / 2 , SCREEN_HEIGHT/2 + 40);
+         RenderButtonsText("Quit", SCREEN_WIDTH / 2 , SCREEN_HEIGHT/2 + 90);
+      }
    }
 
    if(gameState == EGS_Menu)
@@ -480,7 +630,15 @@ int main(int argc, char **argv)
             {
                quit = true;
             }
+            if(e.type == SDL_KEYDOWN)
+            {
+               if(e.key.keysym.sym == SDLK_ESCAPE)
+               {
+                  CheckPauseGame();
+               }
+            }
             if(gameState == EGS_Menu) HandleMenuEvents(e);
+            if(gameState == EGS_PongGame) HandlePauseEvents(e);
             
          }
          //Update control game states
