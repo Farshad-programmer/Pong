@@ -15,9 +15,25 @@
 #define PADDLE_WIDTH 50
 #define PADDLE_HEIGHT SCREEN_HEIGHT/3
 #define BALL_SIZE 10
+
+//colors
+#define WHITE {255, 255, 255, 255}
+#define RED {255, 0, 0, 255}
+#define BLUE {0, 0, 255, 255}
+#define BLACK {0, 0, 0, 255}
+
 SDL_Renderer* renderer = nullptr;
 SDL_Window* window = nullptr;
+
+//main menu
 SDL_Texture* menuBackgroundTexture;
+SDL_Rect startButton = {50, 200, 100, 50};
+SDL_Rect quitButton = {50, 270, 100, 50};
+SDL_Color buttonColor = WHITE ;
+bool startButtonHovered{false};
+bool quitButtonHovered{false};
+
+// gameplay
 bool quit = false;
 SDL_Event e;
 bool bPressUp{false};
@@ -128,8 +144,77 @@ SDL_Texture* LoadTexture(const std::string& path)
    return newTexture;
 }
 
+void HandleMenuEvents(SDL_Event e)
+{
+   if(e.type == SDL_MOUSEMOTION)
+   {
+      int x, y;
+      SDL_GetMouseState(&x, &y);
+      if(x > startButton.x && x < startButton.x + startButton.w && 
+         y > startButton.y && y < startButton.y + startButton.h
+      )
+      {
+         startButtonHovered = true;
+         quitButtonHovered = false;
+         buttonColor = RED;
+      }
+      else if(x > quitButton.x && x < quitButton.x + quitButton.w && 
+         y > quitButton.y && y < quitButton.y + quitButton.h
+      )
+      {
+         startButtonHovered = false;
+         quitButtonHovered = true;
+         buttonColor = RED;
+      }
+      else
+      {
+         startButtonHovered = false;
+         quitButtonHovered = false;
+         buttonColor = WHITE;
+      } 
+   }
+   else if(e.type == SDL_MOUSEBUTTONDOWN)
+   {
+      int x, y;
+      SDL_GetMouseState(&x, &y);
+      if(x > startButton.x && x < startButton.x + startButton.w && 
+         y > startButton.y && y < startButton.y + startButton.h
+      )
+      {
+         buttonColor = BLUE; 
+         gameState = EGS_PongGame; // start game
+      }
+      else if (x > quitButton.x && x < quitButton.x + quitButton.w && 
+         y > quitButton.y && y < quitButton.y + quitButton.h
+      )
+      {
+         buttonColor = BLUE;
+         quit = true; // quit game
+      }
+   }
+   else if (e.type == SDL_MOUSEBUTTONUP)
+   {
+            int x, y;
+      SDL_GetMouseState(&x, &y);
+      if(x > startButton.x && x < startButton.x + startButton.w && 
+         y > startButton.y && y < startButton.y + startButton.h
+      )
+      {
+         buttonColor = RED; 
+      }
+      else if (x > quitButton.x && x < quitButton.x + quitButton.w && 
+         y > quitButton.y && y < quitButton.y + quitButton.h
+      )
+      {
+         buttonColor = RED;
+      }
+   }
+   
+}
+
 void RenderMenu()
 {
+   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
    SDL_RenderClear(renderer);
    menuBackgroundTexture = LoadTexture("assets/bgmenu.png");
    if(menuBackgroundTexture == nullptr)
@@ -140,6 +225,31 @@ void RenderMenu()
    {
       SDL_RenderCopy(renderer, menuBackgroundTexture, nullptr, nullptr);
    }
+
+   if(startButtonHovered)
+   {
+      SDL_SetRenderDrawColor(renderer, buttonColor.r, buttonColor.g, buttonColor.b, buttonColor.a);
+      SDL_RenderFillRect(renderer, &startButton);
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_RenderFillRect(renderer, &quitButton);
+   }
+   else if(quitButtonHovered)
+   {
+      SDL_SetRenderDrawColor(renderer, buttonColor.r, buttonColor.g, buttonColor.b, buttonColor.a);
+      SDL_RenderFillRect(renderer, &quitButton);
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_RenderFillRect(renderer, &startButton);
+   }
+   else
+   {
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_RenderFillRect(renderer, &quitButton);
+      SDL_RenderFillRect(renderer, &startButton);
+   }
+   
+
+
+
 }
 
 void CalculateDeltaTime()
@@ -307,20 +417,19 @@ int main(int argc, char **argv)
       lastTime = SDL_GetTicks();// Start time
       ResetBall(""); // a small delay before game start
       // -----------------------------------------------------------------------------------------------------------
-      if(gameState == EGS_Menu)
-      {
-         RenderMenu();
-      }
+
       while (!quit)
       {
+         if(gameState == EGS_Menu) RenderMenu();
          if(gameState == EGS_PongGame) CalculateDeltaTime();
-
          while (SDL_PollEvent(&e) != 0)
          {
             if (e.type == SDL_QUIT)
             {
                quit = true;
             }
+            if(gameState == EGS_Menu)HandleMenuEvents(e);
+            
          }
          if(gameState == EGS_PongGame)
          {
