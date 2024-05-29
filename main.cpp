@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "SDL.h"
 #include "SDL_image.h"
+#include "SDL_ttf.h"
 #include <cmath>
 //-----------------
 #undef main
@@ -14,8 +15,8 @@
 #define PADDLE_WIDTH 50
 #define PADDLE_HEIGHT SCREEN_HEIGHT/3
 #define BALL_SIZE 10
-SDL_Renderer* renderer;
-SDL_Window* window;
+SDL_Renderer* renderer = nullptr;
+SDL_Window* window = nullptr;
 bool quit = false;
 SDL_Event e;
 bool bPressUp{false};
@@ -25,11 +26,20 @@ float paddleSpeed = 300.f;
 Uint32 lastTime = 0;
 Uint32 currentTime = 0;
 float deltatime = 0;
-float ballMovementAngle = 45.f; 
+float ballMovementAngle = 40.f; 
 int ballSpeed = 700;   
 bool isPaused = false;
 Uint32 pauseTime = 0;
 
+// text variables
+TTF_Font* font = nullptr;
+SDL_Texture* textTexture = nullptr;
+int textWidth {0};
+int textHeight {0};
+
+// score
+int playerOne {0};
+int playerTwo {0};
 
 SDL_Rect leftPaddle{0, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
 SDL_Rect rightPaddle{SCREEN_WIDTH - PADDLE_WIDTH, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
@@ -55,6 +65,13 @@ bool Init()
       success = false;
    } 
 
+   
+    if (TTF_Init() == -1)
+   {
+        std::cerr << "SDL_ttf could not initialize! TTF Error: " << TTF_GetError() << std::endl;
+        return false;
+   }
+
    window = SDL_CreateWindow("Pong Game", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
    if(window == nullptr)
    {
@@ -68,6 +85,13 @@ bool Init()
       std::cerr << "renderer not created!" << SDL_GetError() << std::endl;
       success = false;
    } 
+
+   font = TTF_OpenFont("assets/fonts/lazy.ttf", 28);
+   if(font == nullptr)
+   {
+      std::cerr << "Failed to load font! TTF Error: " << TTF_GetError() << std::endl;
+      success = false;
+   }
    return success;
 }
 
@@ -76,6 +100,33 @@ void CalculateDeltaTime()
    currentTime = SDL_GetTicks();
    deltatime = (currentTime - lastTime) / 1000.f;// Convert to seconds
    lastTime = currentTime;
+}
+
+void RenderText(int playerScore, int x, int y)
+{
+   std::string scoreText = std::to_string(playerScore);
+   const char* charStr = scoreText.c_str();
+   SDL_Color textColor = {255,255,255};
+   SDL_Surface* textSurface = TTF_RenderText_Solid(font, charStr,textColor);
+   if(textSurface == nullptr)
+   {
+      std::cerr << "Unable to render text surface! TTF Error: " << TTF_GetError() << std::endl;
+      return;
+   }
+   textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+   if(textSurface == nullptr)
+   {
+      std::cerr << "Unable to create texture from rendered text! SDL Error: " << SDL_GetError() << std::endl;
+      return;
+   }
+
+   textWidth = textSurface->w;
+   textHeight = textSurface->h;
+   SDL_FreeSurface(textSurface);
+
+   SDL_Rect renderQuad = {x - textWidth / 2, y - textHeight / 2, textWidth, textHeight};
+   SDL_RenderCopy(renderer, textTexture, nullptr, &renderQuad);
+   SDL_DestroyTexture(textTexture);
 }
 
 void Render()
@@ -91,9 +142,6 @@ void Render()
    SDL_RenderFillRect(renderer, &rightPaddle);
    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
    SDL_RenderFillRect(renderer, &ball);
-
-   // update Render
-   SDL_RenderPresent(renderer);
 }
 
 void Update(float deltaSeconds)
@@ -116,16 +164,18 @@ void Update(float deltaSeconds)
    }
 }
 
-
-
-void ResetBall()
+void ResetBall(std::string pointFor)
 {
+   if(pointFor == "p1") playerOne++;
+   if(pointFor == "p2") playerTwo++;
+
    ball.x = SCREEN_WIDTH/2;
    ball.y = SCREEN_HEIGHT/2;
    ballMovementAngle = 45.0f; 
    isPaused = true;
    pauseTime = SDL_GetTicks();
 }
+
 void MoveBall(float deltaSeconds)
 {
    if (isPaused)
@@ -137,19 +187,26 @@ void MoveBall(float deltaSeconds)
       return;
    }
 
-    // Convert angle to radians
-    float angleRadians = ballMovementAngle * M_PI / 180.0f;
+   // Convert angle to radians
+   float angleRadians = ballMovementAngle * M_PI / 180.0f;
     
-    // Update ball position
-    ball.x += static_cast<int>(ballSpeed * deltaSeconds * std::cos(angleRadians));
-    ball.y += static_cast<int>(ballSpeed * deltaSeconds * std::sin(angleRadians));
+   // Update ball position
+   ball.x += static_cast<int>(ballSpeed * deltaSeconds * std::cos(angleRadians));
+   ball.y += static_cast<int>(ballSpeed * deltaSeconds * std::sin(angleRadians));
 
-    // Handle collision with left and right walls
-    if (ball.x >= (SCREEN_WIDTH - BALL_SIZE) || ball.x <= 0)
-    {
-      ResetBall();
+   // Handle collision with left wall
+   if (ball.x >= (SCREEN_WIDTH - BALL_SIZE) )
+   {
+      ResetBall("p1");
       return;
-    }
+   }
+
+   // Handle collision with right wall
+   if (ball.x <= 0)
+   {
+      ResetBall("p2");
+      return;
+   }
 
     // Handle collision with top and bottom walls
     if (ball.y >= (SCREEN_HEIGHT - BALL_SIZE) || ball.y <= 0)
@@ -178,10 +235,15 @@ void Close()
 {
    SDL_DestroyRenderer(renderer);
    SDL_DestroyWindow(window);
+   TTF_CloseFont(font);
+
+   font = nullptr;
    renderer = nullptr;
    window = nullptr;
+
    SDL_Quit();
-   IMG_Quit();
+   TTF_Quit();
+   //IMG_Quit();
 }
 
 int main(int argc, char **argv)
@@ -208,6 +270,12 @@ int main(int argc, char **argv)
          Update(deltatime);
          MoveBall(deltatime);
          Render();
+         RenderText(playerOne, ((SCREEN_WIDTH / 2) - 50), 50);
+         RenderText(playerTwo, ((SCREEN_WIDTH / 2) + 50), 50);
+
+
+         // update Render
+         SDL_RenderPresent(renderer);
 
          // Simulate slower frame rate
          //SDL_Delay(100); //Add 100ms delay per frame
