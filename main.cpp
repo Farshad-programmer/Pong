@@ -125,6 +125,8 @@ void CalculateAIDifficulty()
    {
    case EDIF_Easy:
       aiMoveSpeed = 350.f;
+      leftPaddle.h = SCREEN_HEIGHT / 3;
+      leftPaddleHeight=  SCREEN_HEIGHT / 3;
       break;
    case EDIF_Normal:
       aiMoveSpeed = 400.f;
