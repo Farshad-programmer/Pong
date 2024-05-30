@@ -137,9 +137,9 @@ void CalculateAIDifficulty()
       leftPaddleHeight=  SCREEN_HEIGHT / 5;
       break;
    case EDIF_MadImpossible:
-      aiMoveSpeed = 600.f;
-      leftPaddle.h = SCREEN_HEIGHT / 8;
-      leftPaddleHeight=  SCREEN_HEIGHT / 8;
+      aiMoveSpeed = 530.f;
+      leftPaddle.h = SCREEN_HEIGHT / 7;
+      leftPaddleHeight=  SCREEN_HEIGHT / 7;
       break;
    
    default:
