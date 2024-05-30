@@ -16,8 +16,10 @@
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
 #define PADDLE_WIDTH 50
-#define PADDLE_HEIGHT SCREEN_HEIGHT/3
+#define RIGHT_PADDLE_HEIGHT SCREEN_HEIGHT/3
 #define BALL_SIZE 10
+
+int leftPaddleHeight = SCREEN_HEIGHT/3 ;
 
 //colors
 #define WHITE {255, 255, 255, 255}
@@ -30,14 +32,15 @@ SDL_Window* window = nullptr;
 
 //main menu
 SDL_Texture* menuBackgroundTexture;
-SDL_Rect startButton = {50, 200, 100, 40};
-SDL_Rect quitButton = {50, 270, 100, 40};
+SDL_Rect startButton = {50, 200, 120, 40};
+SDL_Rect difficultyButton = {50, 270, 120, 40};
+SDL_Rect quitButton = {50, 340, 120, 40};
 SDL_Rect menuButton = {SCREEN_WIDTH / 2 - menuButton.w / 2 , SCREEN_HEIGHT/2 + 20 , 100, 40};
 SDL_Rect exitGameButton = {SCREEN_WIDTH / 2 - exitGameButton.w / 2 , SCREEN_HEIGHT/2 + 70 , 100, 40};
 SDL_Color buttonColor = WHITE ;
 bool startButtonHovered{false};
 bool quitButtonHovered{false};
-
+bool difficultyButtonHovered{false};
 bool menuButtonHovered{false};
 bool ExitButtonHovered{false};
 
@@ -56,7 +59,9 @@ float deltatime = 0;
 
 // ball
 float ballMovementAngle = 40.f; 
-int ballSpeed = 700; 
+int ballSpeed = 600; 
+int ballRealSpeed = 1100;
+int ballStartCounter = 0;
 
 // pause
 bool isPaused = true;
@@ -85,9 +90,10 @@ Mix_Chunk* paddle2 = nullptr;
 int soundChannel1{0};
 int soundChanne2{0};
 
-SDL_Rect leftPaddle{0, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
-SDL_Rect rightPaddle{SCREEN_WIDTH - PADDLE_WIDTH, SCREEN_HEIGHT/3, PADDLE_WIDTH, PADDLE_HEIGHT };
+SDL_Rect leftPaddle{0, SCREEN_HEIGHT/3, PADDLE_WIDTH, leftPaddleHeight };
+SDL_Rect rightPaddle{SCREEN_WIDTH - PADDLE_WIDTH, SCREEN_HEIGHT/3, PADDLE_WIDTH, RIGHT_PADDLE_HEIGHT };
 SDL_Rect ball{SCREEN_WIDTH/2, SCREEN_HEIGHT/2, BALL_SIZE, BALL_SIZE };
+
 
 enum EGameState
 {
@@ -97,7 +103,51 @@ enum EGameState
 
 EGameState gameState = EGS_Menu;
 
+// AI
+enum EAIDifficulty
+{
+   EDIF_Easy,
+   EDIF_Normal,
+   EDIF_Hard,
+   EDIF_MadImpossible
+};
+
+float aiMoveSpeed {0.f};
+
+EAIDifficulty aiDifficulty = EDIF_Easy;
+
+
 // global functions
+
+void CalculateAIDifficulty()
+{
+   switch (aiDifficulty)
+   {
+   case EDIF_Easy:
+      aiMoveSpeed = 350.f;
+      break;
+   case EDIF_Normal:
+      aiMoveSpeed = 400.f;
+      leftPaddle.h = SCREEN_HEIGHT / 4;
+      leftPaddleHeight=  SCREEN_HEIGHT / 4;
+      break;
+   case EDIF_Hard:
+      aiMoveSpeed = 500.f;
+      leftPaddle.h = SCREEN_HEIGHT / 5;
+      leftPaddleHeight=  SCREEN_HEIGHT / 5;
+      break;
+   case EDIF_MadImpossible:
+      aiMoveSpeed = 600.f;
+      leftPaddle.h = SCREEN_HEIGHT / 8;
+      leftPaddleHeight=  SCREEN_HEIGHT / 8;
+      break;
+   
+   default:
+      aiMoveSpeed = 1200.f;
+      break;
+   }
+}
+
 bool Init()
 {
    bool success = true;
@@ -133,7 +183,8 @@ bool Init()
       return false;
    }
 
-   
+   aiDifficulty = EDIF_Easy;
+   CalculateAIDifficulty();
     // Allocate 16 mixing channels
    Mix_AllocateChannels(16);
 
@@ -166,7 +217,6 @@ bool Init()
    }
    return success;
 }
-
 Mix_Music* LoadMusic(std::string path)
 {
    Mix_Music* newSound = Mix_LoadMUS(path.c_str());
@@ -238,7 +288,6 @@ void StopSound(Mix_Chunk* sound, int channel)
    }
 }
 
-
 SDL_Texture* LoadTexture(const std::string& path)
 {
    SDL_Texture* newTexture = nullptr;
@@ -268,6 +317,10 @@ void ResetBall(std::string pointFor)
 
    ball.x = SCREEN_WIDTH/2;
    ball.y = SCREEN_HEIGHT/2;
+
+   ballStartCounter = 0;
+   ballSpeed = 600.f;
+
 
    // Initialize random seed
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -320,6 +373,31 @@ void BackToMainMenu()
    StopMusic(backgroundGameplayMusic);
 }
 
+void RenderButtonsText(const char* text, int x, int y)
+{
+   SDL_Color buttonTextColor = {0, 0, 0, 255};
+   SDL_Surface* buttonTextSurface = TTF_RenderText_Solid(buttonFont, text,buttonTextColor);
+   if(buttonTextSurface == nullptr)
+   {
+      std::cerr << "Unable to render Buttons Text surface! TTF Error: " << TTF_GetError() << std::endl;
+      return;
+   }
+   buttonTextTexture = SDL_CreateTextureFromSurface(renderer, buttonTextSurface);
+   if(buttonTextSurface == nullptr)
+   {
+      std::cerr << "Unable to create button texture from rendered text! SDL Error: " << SDL_GetError() << std::endl;
+      return;
+   }
+
+   int buttnTextWidth = buttonTextSurface->w;
+   int buttonTextHeight = buttonTextSurface->h;
+   SDL_FreeSurface(buttonTextSurface);
+
+   SDL_Rect renderQuad = {x - buttnTextWidth / 2, y - buttonTextHeight / 2, buttnTextWidth, buttonTextHeight};
+   SDL_RenderCopy(renderer, buttonTextTexture, nullptr, &renderQuad);
+   SDL_DestroyTexture(buttonTextTexture);
+}
+
 void HandleMenuEvents(SDL_Event e)
 {
    if(e.type == SDL_MOUSEMOTION)
@@ -332,6 +410,7 @@ void HandleMenuEvents(SDL_Event e)
       {
          startButtonHovered = true;
          quitButtonHovered = false;
+         difficultyButtonHovered = false;
          buttonColor = RED;
       }
       else if(x > quitButton.x && x < quitButton.x + quitButton.w && 
@@ -340,12 +419,23 @@ void HandleMenuEvents(SDL_Event e)
       {
          startButtonHovered = false;
          quitButtonHovered = true;
+         difficultyButtonHovered = false;
+         buttonColor = RED;
+      }
+      else if(x > difficultyButton.x && x < difficultyButton.x + difficultyButton.w && 
+         y > difficultyButton.y && y < difficultyButton.y + difficultyButton.h
+      )
+      {
+         difficultyButtonHovered = true;
+         quitButtonHovered = false;
+         startButtonHovered = false;
          buttonColor = RED;
       }
       else
       {
          startButtonHovered = false;
          quitButtonHovered = false;
+         difficultyButtonHovered = false;
          buttonColor = WHITE;
       } 
    }
@@ -367,6 +457,31 @@ void HandleMenuEvents(SDL_Event e)
          buttonColor = BLUE;
          quit = true; // quit game
       }
+      else if (x > difficultyButton.x && x < difficultyButton.x + difficultyButton.w && 
+         y > difficultyButton.y && y < difficultyButton.y + difficultyButton.h
+      )
+      {
+         buttonColor = BLUE;
+         switch (aiDifficulty)
+         {
+         case EDIF_Easy:
+         aiDifficulty = EDIF_Normal;
+            break;
+         case EDIF_Normal:
+         aiDifficulty = EDIF_Hard;
+            break;
+         case EDIF_Hard:
+         aiDifficulty = EDIF_MadImpossible;
+            break;
+         case EDIF_MadImpossible:
+         aiDifficulty = EDIF_Easy;
+            break;
+         
+         default:
+            break;
+         }
+         CalculateAIDifficulty();
+      }
    }
    else if (e.type == SDL_MOUSEBUTTONUP)
    {
@@ -380,6 +495,12 @@ void HandleMenuEvents(SDL_Event e)
       }
       else if (x > quitButton.x && x < quitButton.x + quitButton.w && 
          y > quitButton.y && y < quitButton.y + quitButton.h
+      )
+      {
+         buttonColor = RED;
+      }
+      else if (x > difficultyButton.x && x < difficultyButton.x + difficultyButton.w && 
+         y > difficultyButton.y && y < difficultyButton.y + difficultyButton.h
       )
       {
          buttonColor = RED;
@@ -477,6 +598,8 @@ void RenderMenu()
       SDL_RenderFillRect(renderer, &startButton);
       SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
       SDL_RenderFillRect(renderer, &quitButton);
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_RenderFillRect(renderer, &difficultyButton);
    }
    else if(quitButtonHovered)
    {
@@ -484,38 +607,25 @@ void RenderMenu()
       SDL_RenderFillRect(renderer, &quitButton);
       SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
       SDL_RenderFillRect(renderer, &startButton);
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_RenderFillRect(renderer, &difficultyButton);
+   }
+   else if(difficultyButtonHovered)
+   {
+      SDL_SetRenderDrawColor(renderer, buttonColor.r, buttonColor.g, buttonColor.b, buttonColor.a);
+      SDL_RenderFillRect(renderer, &difficultyButton);
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_RenderFillRect(renderer, &startButton);
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_RenderFillRect(renderer, &quitButton);
    }
    else
    {
       SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
       SDL_RenderFillRect(renderer, &quitButton);
       SDL_RenderFillRect(renderer, &startButton);
+      SDL_RenderFillRect(renderer, &difficultyButton);
    }
-}
-
-void RenderButtonsText(const char* text, int x, int y)
-{
-   SDL_Color buttonTextColor = {0, 0, 0, 255};
-   SDL_Surface* buttonTextSurface = TTF_RenderText_Solid(buttonFont, text,buttonTextColor);
-   if(buttonTextSurface == nullptr)
-   {
-      std::cerr << "Unable to render Buttons Text surface! TTF Error: " << TTF_GetError() << std::endl;
-      return;
-   }
-   buttonTextTexture = SDL_CreateTextureFromSurface(renderer, buttonTextSurface);
-   if(buttonTextSurface == nullptr)
-   {
-      std::cerr << "Unable to create button texture from rendered text! SDL Error: " << SDL_GetError() << std::endl;
-      return;
-   }
-
-   int buttnTextWidth = buttonTextSurface->w;
-   int buttonTextHeight = buttonTextSurface->h;
-   SDL_FreeSurface(buttonTextSurface);
-
-   SDL_Rect renderQuad = {x - buttnTextWidth / 2, y - buttonTextHeight / 2, buttnTextWidth, buttonTextHeight};
-   SDL_RenderCopy(renderer, buttonTextTexture, nullptr, &renderQuad);
-   SDL_DestroyTexture(buttonTextTexture);
 }
 
 void RenderPauseGameText(const char* text, int x, int y)
@@ -601,6 +711,32 @@ void CheckPauseGame()
    isPlayerPausedGame = !isPlayerPausedGame; 
 }
 
+void AIAction(float deltaSeconds)
+{ 
+   if(ball.y > rightPaddle.y && rightPaddle.y < SCREEN_HEIGHT - RIGHT_PADDLE_HEIGHT)
+   {
+      rightPaddle.y += aiMoveSpeed  * deltaSeconds;
+   }
+
+   if(ball.y < rightPaddle.y && rightPaddle.y > 0)
+   {
+      rightPaddle.y -= aiMoveSpeed  * deltaSeconds;
+   }
+       // Simple AI to follow the ball
+    // Simple AI to follow the ball
+   //  int paddleCenter = rightPaddle.y + PADDLE_HEIGHT / 2;
+   //  int ballCenter = ball.y + BALL_SIZE / 2;
+
+   //  if (ballCenter < paddleCenter - 20)  // 100 is a buffer zone to avoid jitter
+   //  {
+   //      if (rightPaddle.y > 0) rightPaddle.y -= aiMoveSpeed * deltaSeconds;
+   //  }
+   //  else if (ballCenter > paddleCenter + 20)  // 100 is a buffer zone to avoid jitter
+   //  {
+   //      if (rightPaddle.y < SCREEN_HEIGHT - PADDLE_HEIGHT) rightPaddle.y += aiMoveSpeed * deltaSeconds;
+   //  }
+}
+
 void UpdateGameInput(float deltaSeconds)
 {
    if(isPlayerPausedGame) return;
@@ -611,16 +747,18 @@ void UpdateGameInput(float deltaSeconds)
    }
    if (currentKeyStates[SDL_SCANCODE_S])
    {
-      if(leftPaddle.y < SCREEN_HEIGHT - PADDLE_HEIGHT) leftPaddle.y += paddleSpeed * deltaSeconds;
+      if(leftPaddle.y < SCREEN_HEIGHT - leftPaddleHeight) leftPaddle.y += paddleSpeed * deltaSeconds;
    }
-   if (currentKeyStates[SDL_SCANCODE_UP])
-   {
-      if(rightPaddle.y > 0) rightPaddle.y -= paddleSpeed * deltaSeconds;
-   }
-   if (currentKeyStates[SDL_SCANCODE_DOWN])
-   {
-      if(rightPaddle.y < SCREEN_HEIGHT - PADDLE_HEIGHT) rightPaddle.y += paddleSpeed * deltaSeconds;
-   }
+
+   AIAction(deltaSeconds);
+   // if (currentKeyStates[SDL_SCANCODE_UP])
+   // {
+   //    if(rightPaddle.y > 0) rightPaddle.y -= paddleSpeed * deltaSeconds;
+   // }
+   // if (currentKeyStates[SDL_SCANCODE_DOWN])
+   // {
+   //    if(rightPaddle.y < SCREEN_HEIGHT - PADDLE_HEIGHT) rightPaddle.y += paddleSpeed * deltaSeconds;
+   // }
 }
 
 void PlayPaddleSound()
@@ -658,6 +796,13 @@ void MoveBall(float deltaSeconds)
    {
       return;
    }
+
+   ballStartCounter++;
+   if(ballStartCounter > 50)
+   {
+      ballSpeed = ballRealSpeed;
+   }
+
 
    // Convert angle to radians
    float angleRadians = ballMovementAngle * M_PI / 180.0f;
@@ -707,7 +852,6 @@ void MoveBall(float deltaSeconds)
     }
 }
 
-
 void ControlGameStates()
 {
    if(gameState == EGS_PongGame)
@@ -753,7 +897,25 @@ void ControlGameStates()
    if(gameState == EGS_Menu)
    {
       RenderButtonsText("Start", 100, 225);
-      RenderButtonsText("Quit", 100, 295);
+      RenderButtonsText("Quit", 100, 365);
+         switch (aiDifficulty)
+         {
+         case EDIF_Easy:
+         RenderButtonsText("Easy", 100, 295);
+            break;
+         case EDIF_Normal:
+         RenderButtonsText("Normal", 100, 295);
+            break;
+         case EDIF_Hard:
+         RenderButtonsText("Hard", 100, 295);
+            break;
+         case EDIF_MadImpossible:
+         RenderButtonsText("Impossible", 110, 295);
+            break;
+         
+         default:
+            break;
+         }
    }
 }
 
