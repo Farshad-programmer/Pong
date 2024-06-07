@@ -12,6 +12,8 @@
 #undef main
 //-----------------
 
+//a test
+
 // global variables
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
